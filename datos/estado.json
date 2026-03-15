@@ -1,0 +1,15 @@
+{
+  "sensores": {
+    "temp": 22.0,
+    "light": 500.0,
+    "pir": 0.0
+  },
+  "actuadores": {
+    "bulb": "OFF",
+    "fan": "OFF"
+  },
+  "reglasActivas": {
+    "R1. Ventilacion Confortable": true,
+    "R2. Iluminacion Automatica": true
+  }
+}
