@@ -7,6 +7,12 @@ import javax.swing.*;
 import java.awt.event.*;
 import java.util.*;
 
+/*
+ * Controlador del patron MVC.
+ * Es el que conecta el Modelo con la Vista: escucha los eventos
+ * de la GUI, llama al modelo para hacer la logica y despues
+ * actualiza la vista con los datos nuevos.
+ */
 public class Controlador {
 
     private SmartTecnoHouse modelo;
@@ -15,9 +21,13 @@ public class Controlador {
     public Controlador(SmartTecnoHouse modelo, VistaPrincipal vista) {
         this.modelo = modelo;
         this.vista = vista;
+
+        // cargar datos iniciales en la vista
         refrescarSensores();
         refrescarActuadores();
         refrescarReglas();
+
+        // registrar los listeners de los botones
         registrarEventos();
     }
 
@@ -28,7 +38,17 @@ public class Controlador {
         vista.addGuardarEstadoListener(e -> onGuardar());
         vista.addCargarEstadoListener(e -> onCargar());
         vista.addSeleccionActuadorListener(e -> onCambioActuador());
+
+        // para preguntar al cerrar la ventana
+        vista.addCerrarVentanaListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                onCerrar();
+            }
+        });
     }
+
+    // ---------- Handlers de eventos ----------
 
     private void onActualizarSensores() {
         modelo.actualizarSensores();
@@ -38,9 +58,16 @@ public class Controlador {
 
     private void onEjecutarAccion() {
         int idx = vista.getActuadorSeleccionado();
-        if (idx < 0) { vista.mostrarError("Selecciona un actuador primero."); return; }
+        if (idx < 0) {
+            vista.mostrarError("Selecciona un actuador primero.");
+            return;
+        }
         String accion = vista.getAccionSeleccionada();
-        if (accion == null) { vista.mostrarError("Selecciona una accion."); return; }
+        if (accion == null) {
+            vista.mostrarError("Selecciona una accion.");
+            return;
+        }
+
         Actuador act = modelo.getActuadores().get(idx);
         try {
             modelo.ejecutarAccionManual(act.getID(), accion);
@@ -52,8 +79,14 @@ public class Controlador {
     }
 
     private void onAplicarReglas() {
+        // primero actualizamos que reglas estan marcadas
         JCheckBox[] checks = vista.getChecksReglas();
-        if (checks != null) for (JCheckBox cb : checks) modelo.setReglaActiva(cb.getActionCommand(), cb.isSelected());
+        if (checks != null) {
+            for (JCheckBox cb : checks) {
+                modelo.setReglaActiva(cb.getActionCommand(), cb.isSelected());
+            }
+        }
+
         modelo.aplicarReglas();
         refrescarActuadores();
         refrescarSensores();
@@ -69,7 +102,9 @@ public class Controlador {
     private void onCargar() {
         boolean ok = modelo.cargarEstado();
         if (ok) {
-            refrescarSensores(); refrescarActuadores(); refrescarReglas();
+            refrescarSensores();
+            refrescarActuadores();
+            refrescarReglas();
             vista.mostrarEstado("Estado cargado desde datos/estado.json");
             vista.mostrarMensaje("Estado cargado correctamente.", "Cargar");
         } else {
@@ -80,13 +115,31 @@ public class Controlador {
     private void onCambioActuador() {
         int idx = vista.getActuadorSeleccionado();
         if (idx >= 0 && idx < modelo.getActuadores().size()) {
-            vista.actualizarComboAcciones(modelo.getActuadores().get(idx).getAccionesPosibles());
+            Actuador act = modelo.getActuadores().get(idx);
+            vista.actualizarComboAcciones(act.getAccionesPosibles());
         }
     }
 
+    private void onCerrar() {
+        int opcion = vista.preguntarGuardarAntesDeSalir();
+        if (opcion == JOptionPane.YES_OPTION) {
+            modelo.guardarEstado();
+            System.exit(0);
+        } else if (opcion == JOptionPane.NO_OPTION) {
+            System.exit(0);
+        }
+        // si da a cancelar no hacemos nada
+    }
+
+    // ---------- Metodos para refrescar la vista con datos del modelo ----------
+
     private void refrescarSensores() {
         List<String[]> datos = new ArrayList<>();
-        for (Sensor s : modelo.getSensores()) datos.add(new String[]{s.getID(), s.getNombre(), s.getEstadoActual(), s.getUnidad()});
+        for (Sensor s : modelo.getSensores()) {
+            datos.add(new String[]{
+                s.getID(), s.getNombre(), s.getEstadoActual(), s.getUnidad()
+            });
+        }
         vista.actualizarTablaSensores(datos);
     }
 
@@ -95,23 +148,41 @@ public class Controlador {
         List<Actuador> actuadores = modelo.getActuadores();
         String[] nombres = new String[actuadores.size()];
         String[] ids = new String[actuadores.size()];
+
         for (int i = 0; i < actuadores.size(); i++) {
             Actuador a = actuadores.get(i);
-            datos.add(new String[]{a.getID(), a.getNombre(), a.getEstadoActual(), String.join(", ", a.getAccionesPosibles())});
+            datos.add(new String[]{
+                a.getID(), a.getNombre(), a.getEstadoActual(),
+                String.join(", ", a.getAccionesPosibles())
+            });
             nombres[i] = a.getNombre();
             ids[i] = a.getID();
         }
+
         vista.actualizarTablaActuadores(datos);
         vista.configurarComboActuadores(nombres, ids);
-        if (!actuadores.isEmpty()) vista.actualizarComboAcciones(actuadores.get(0).getAccionesPosibles());
+
+        // poner las acciones del primer actuador en el combo
+        if (!actuadores.isEmpty()) {
+            vista.actualizarComboAcciones(actuadores.get(0).getAccionesPosibles());
+        }
     }
 
     private void refrescarReglas() {
         Map<String, String> infoReglas = new LinkedHashMap<>();
-        for (Regla r : modelo.getReglas()) infoReglas.put(r.getNombre(), r.getDescripcion());
+        for (Regla r : modelo.getReglas()) {
+            infoReglas.put(r.getNombre(), r.getDescripcion());
+        }
         vista.configurarReglas(infoReglas, modelo.getReglasActivas());
-        vista.addReglaCheckListener(e -> { JCheckBox cb = (JCheckBox) e.getSource(); modelo.setReglaActiva(cb.getActionCommand(), cb.isSelected()); });
+
+        // volver a registrar los listeners de los checkboxes
+        vista.addReglaCheckListener(e -> {
+            JCheckBox cb = (JCheckBox) e.getSource();
+            modelo.setReglaActiva(cb.getActionCommand(), cb.isSelected());
+        });
     }
 
-    public void iniciar() { vista.setVisible(true); }
+    public void iniciar() {
+        vista.setVisible(true);
+    }
 }
