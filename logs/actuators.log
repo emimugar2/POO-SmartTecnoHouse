@@ -1,0 +1,7 @@
+[2026-03-27 10:00:00] Sistema Smart TecnoHouse iniciado
+[2026-03-27 10:00:01] Regla aplicada: R1. Ventilacion Confortable
+[2026-03-27 10:00:01] Regla aplicada: R2. Iluminacion Automatica
+[2026-03-27 10:00:01] Regla aplicada: R3. Persiana Automatica
+[2026-03-27 10:00:15] Dispositivo: fan | Accion: HIGH | Estado: HIGH
+[2026-03-27 10:00:20] Dispositivo: bulb | Accion: ON | Estado: ON
+[2026-03-27 10:00:30] Dispositivo: blind | Accion: MEDIA | Estado: MEDIA
